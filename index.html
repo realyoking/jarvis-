@@ -212,8 +212,13 @@
 
   .memory-item{
     display:flex;justify-content:space-between;align-items:start;gap:8px;
-    padding:8px;border-radius:6px;background:rgba(0,229,255,0.04);
-    border:1px solid rgba(0,229,255,0.1);font-size:11px;
+    padding:10px;border-radius:8px;background:rgba(0,229,255,0.04);
+    border:1px solid rgba(0,229,255,0.1);font-size:12px;
+    transition: all .2s;
+  }
+  .memory-item:hover {
+    border-color: rgba(0,229,255,0.3);
+    background: rgba(0,229,255,0.08);
   }
 
   @media (prefers-reduced-motion: reduce){*{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
@@ -245,6 +250,9 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <button id="memoryBtn" class="btn rounded-lg p-2" title="View Memories">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 00-3 3v1.5a3 3 0 000 6V14a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M12 12v0M9 12H6a3 3 0 00-3 3v0a3 3 0 003 3h3M15 12h3a3 3 0 013 3v0a3 3 0 01-3 3h-3"/></svg>
+      </button>
       <button id="ambientBtn" class="btn rounded-lg px-3 py-2 text-xs font-mono uppercase tracking-wider flex items-center gap-2" title="Toggle wake word 'Jarvis'">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
         <span class="hidden sm:inline" id="ambientLabel">Wake Off</span>
@@ -288,9 +296,9 @@
       <div class="glass rounded-2xl p-4 flex-1 overflow-hidden flex flex-col">
         <div class="flex justify-between items-center mb-3">
           <div class="text-[10px] font-mono text-cyan-400/60 uppercase tracking-widest">User Memory</div>
-          <button id="clearMemoryBtn" class="text-[9px] font-mono uppercase tracking-wider text-slate-500 hover:text-red-400 transition">Clear</button>
+          <button id="clearMemoryBtnSide" class="text-[9px] font-mono uppercase tracking-wider text-slate-500 hover:text-red-400 transition">Clear</button>
         </div>
-        <div id="memoryList" class="space-y-1.5 overflow-y-auto scroll text-cyan-200/80" style="max-height:120px"></div>
+        <div id="memoryListSide" class="space-y-1.5 overflow-y-auto scroll text-cyan-200/80" style="max-height:120px"></div>
       </div>
 
       <div class="glass rounded-2xl p-4 flex-1 overflow-hidden">
@@ -376,7 +384,6 @@
     </div>
 
     <div class="space-y-4">
-      <!-- Presets -->
       <div>
         <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Provider Preset</label>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -403,7 +410,6 @@
         </div>
       </div>
 
-      <!-- Model with auto-fetch -->
       <div>
         <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Model</label>
         <div class="flex gap-2">
@@ -422,7 +428,7 @@
 
       <div>
         <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">System Prompt</label>
-        <textarea id="cfgSystem" rows="3" class="input w-full rounded-lg px-3 py-2.5 text-sm resize-none">You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as "Sir" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, calculations, and saving memories.</textarea>
+        <textarea id="cfgSystem" rows="3" class="input w-full rounded-lg px-3 py-2.5 text-sm resize-none">You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as "Sir" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, calculations, and saving memories. NEVER reveal your underlying model name (like GPT-4, Llama, Claude). You are JARVIS, created by Tony Stark.</textarea>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
@@ -436,7 +442,6 @@
         </div>
       </div>
 
-      <!-- Tools -->
       <div>
         <label class="text-[10px] font-mono uppercase tracking-widest text-purple-300/70 block mb-2">Tool Calling (Function Calling)</label>
         <div class="grid grid-cols-2 gap-2">
@@ -500,6 +505,32 @@
   </div>
 </div>
 
+<!-- Memory Vault Modal -->
+<div id="memoryModal" class="modal-backdrop hidden">
+  <div class="glass-strong rounded-3xl w-full max-w-md p-7 max-h-[80vh] flex flex-col">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="font-display text-xl font-bold text-cyan-100">Memory Vault</h2>
+        <p class="text-xs text-slate-400 mt-1 font-mono">Long-term context saved locally</p>
+      </div>
+      <button id="closeMemory" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/5 transition">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    
+    <div class="flex items-center gap-2 mb-4">
+      <input id="newMemoryInput" type="text" placeholder="Manually save a memory..." class="input flex-1 rounded-lg px-3 py-2 text-sm">
+      <button id="addMemoryBtn" class="btn-primary btn rounded-lg px-3 py-2 text-sm font-mono">Add</button>
+    </div>
+
+    <div id="memoryListMain" class="flex-1 overflow-y-auto scroll space-y-2 pr-1"></div>
+    
+    <button id="clearMemoryBtn" class="btn rounded-lg px-4 py-2 text-xs font-mono uppercase tracking-wider w-full mt-4" style="border-color:rgba(255,77,109,0.4);color:#ffd0d8;background:rgba(255,77,109,0.05)">
+      Clear All Memories
+    </button>
+  </div>
+</div>
+
 <div id="toastContainer"></div>
 
 <script>
@@ -551,9 +582,17 @@ const ttsLabel = $('ttsLabel');
 const ambientBtn = $('ambientBtn');
 const ambientLabel = $('ambientLabel');
 const clearBtn = $('clearBtn');
-const clearMemoryBtn = $('clearMemoryBtn');
-const memoryList = $('memoryList');
 const fetchModelsBtn = $('fetchModelsBtn');
+
+const memoryBtn = $('memoryBtn');
+const memoryModal = $('memoryModal');
+const closeMemory = $('closeMemory');
+const clearMemoryBtn = $('clearMemoryBtn');
+const clearMemoryBtnSide = $('clearMemoryBtnSide');
+const newMemoryInput = $('newMemoryInput');
+const addMemoryBtn = $('addMemoryBtn');
+const memoryListMain = $('memoryListMain');
+const memoryListSide = $('memoryListSide');
 
 /* ---------- Toast ---------- */
 function toast(msg, type='info'){
@@ -587,10 +626,9 @@ function setStatus(s){
   reactorState.style.color = s==='error' ? '#ff8a9a' : s==='listen' ? '#7fffaa' : s==='ambient' ? '#7fefff' : s==='think' ? '#ffc59e' : s==='tools' ? '#cbb0ff' : s==='speak' ? '#ffc59e' : 'rgba(127,239,255,0.8)';
   reactorTool.classList.toggle('hidden', s !== 'tools');
   
-  // update mic button visual
-  if(state.ambientMode && !state.isProcessingCommand) {
+  if(state.ambientMode && !state.isProcessingCommand && s !== 'speak' && s !== 'think' && s !== 'tools') {
     micBtn.classList.add('ambient');
-  } else {
+  } else if(s !== 'listen') {
     micBtn.classList.remove('ambient');
   }
 }
@@ -742,36 +780,70 @@ function saveMemories(){
   renderMemories();
 }
 function renderMemories(){
-  memoryList.innerHTML = '';
+  const emptyHtml = '<div class="text-[10px] text-slate-500 font-mono">No memories saved yet.</div>';
+  
+  // Sidebar
+  memoryListSide.innerHTML = '';
   if(state.memories.length === 0){
-    memoryList.innerHTML = '<div class="text-[10px] text-slate-500 font-mono">No memories saved yet.</div>';
-    return;
-  }
-  state.memories.forEach((m, i) => {
-    const item = document.createElement('div');
-    item.className = 'memory-item';
-    item.innerHTML = `
-      <span class="text-cyan-200/90 flex-1">${escapeHtml(m)}</span>
-      <button data-idx="${i}" class="del-memory text-slate-500 hover:text-red-400 transition flex-shrink-0">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    `;
-    memoryList.appendChild(item);
-  });
-  memoryList.querySelectorAll('.del-memory').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.idx);
-      state.memories.splice(idx, 1);
-      saveMemories();
-      logEvent('Memory deleted manually', 'info');
+    memoryListSide.innerHTML = emptyHtml;
+  } else {
+    state.memories.forEach((m, i) => {
+      const item = document.createElement('div');
+      item.className = 'memory-item';
+      item.innerHTML = `<span class="text-cyan-200/90 flex-1 break-all">${escapeHtml(m)}</span>`;
+      memoryListSide.appendChild(item);
     });
-  });
+  }
+
+  // Main Modal
+  memoryListMain.innerHTML = '';
+  if(state.memories.length === 0){
+    memoryListMain.innerHTML = '<div class="text-center text-slate-500 text-sm py-8 font-mono">Memory vault is empty.<br>Tell JARVIS something to remember, or add one manually.</div>';
+  } else {
+    state.memories.forEach((m, i) => {
+      const item = document.createElement('div');
+      item.className = 'memory-item group';
+      item.innerHTML = `
+        <span class="text-cyan-200/90 flex-1 break-all">${escapeHtml(m)}</span>
+        <button data-idx="${i}" class="del-memory text-slate-600 hover:text-red-400 transition flex-shrink-0 p-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        </button>
+      `;
+      memoryListMain.appendChild(item);
+    });
+    memoryListMain.querySelectorAll('.del-memory').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        state.memories.splice(idx, 1);
+        saveMemories();
+        logEvent('Memory deleted manually', 'info');
+      });
+    });
+  }
 }
 clearMemoryBtn.addEventListener('click', () => {
   state.memories = [];
   saveMemories();
   toast('All memories cleared', 'success');
   logEvent('All memories cleared', 'warn');
+});
+clearMemoryBtnSide.addEventListener('click', () => {
+  state.memories = [];
+  saveMemories();
+  toast('All memories cleared', 'success');
+  logEvent('All memories cleared', 'warn');
+});
+addMemoryBtn.addEventListener('click', () => {
+  const val = newMemoryInput.value.trim();
+  if(val){
+    state.memories.push(val);
+    saveMemories();
+    newMemoryInput.value = '';
+    toast('Memory added', 'success');
+  }
+});
+newMemoryInput.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') addMemoryBtn.click();
 });
 
 function getSystemPromptWithContext(){
@@ -986,7 +1058,7 @@ function loadConfig(){
     }
   } catch(e){}
   if(!state.config.system){
-    state.config.system = "You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as \"Sir\" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, calculations, and saving memories.";
+    state.config.system = "You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as \"Sir\" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, calculations, and saving memories. NEVER reveal your underlying model name (like GPT-4, Llama, Claude). You are JARVIS, created by Tony Stark.";
   }
   if(!state.config.temperature) state.config.temperature = 0.7;
   if(!state.config.maxTokens) state.config.maxTokens = 1024;
@@ -1129,7 +1201,7 @@ async function fetchModels(){
 
 fetchModelsBtn.addEventListener('click', fetchModels);
 
-/* ---------- Settings ---------- */
+/* ---------- Settings & Memory Modals ---------- */
 function openSettings(){
   applyConfigToUI();
   settingsModal.classList.remove('hidden');
@@ -1143,6 +1215,12 @@ function closeSettingsFn(){ settingsModal.classList.add('hidden'); }
 settingsBtn.addEventListener('click', openSettings);
 closeSettings.addEventListener('click', closeSettingsFn);
 settingsModal.addEventListener('click',(e)=>{ if(e.target===settingsModal) closeSettingsFn(); });
+
+function openMemory() { memoryModal.classList.remove('hidden'); }
+function closeMemoryFn() { memoryModal.classList.add('hidden'); }
+memoryBtn.addEventListener('click', openMemory);
+closeMemory.addEventListener('click', closeMemoryFn);
+memoryModal.addEventListener('click',(e)=>{ if(e.target===memoryModal) closeMemoryFn(); });
 
  $('toggleKey').addEventListener('click', () => {
   const i = $('cfgApiKey');
@@ -1201,6 +1279,21 @@ testBtn.addEventListener('click', async () => {
 });
 
 /* ---------- TTS ---------- */
+let ttsUnlocked = false;
+// iOS Safari requires TTS to be triggered by a user action initially.
+function unlockTTS() {
+  if (ttsUnlocked || !('speechSynthesis' in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+    ttsUnlocked = true;
+  } catch(e) {}
+}
+// Unlock on the very first touch/click anywhere
+document.addEventListener('click', unlockTTS, { once: true });
+document.addEventListener('touchstart', unlockTTS, { once: true });
+
 function loadVoices(){
   if(!('speechSynthesis' in window)) return;
   state.voices = speechSynthesis.getVoices();
@@ -1222,12 +1315,21 @@ if('speechSynthesis' in window){
 function speak(text){
   if(!state.config.tts || !('speechSynthesis' in window)) return;
   try {
-    speechSynthesis.cancel();
+    // Stop any current speech
+    if (speechSynthesis.speaking || speechSynthesis.pending) {
+      speechSynthesis.cancel();
+    }
+    
     const clean = text.replace(/[*_`#>]/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/```[\s\S]*?```/g,'').trim();
     if(!clean) return;
+    
     const u = new SpeechSynthesisUtterance(clean);
     u.rate = 1.02; u.pitch = 1.0; u.volume = 1;
-    if(state.config.voice){ const v = state.voices.find(x=>x.name===state.config.voice); if(v) u.voice = v; }
+    if(state.config.voice){ 
+      const v = state.voices.find(x=>x.name===state.config.voice); 
+      if(v) u.voice = v; 
+    }
+    
     u.onstart = () => { state.ttsActive = true; if(state.status!=='think'&&state.status!=='tools') setStatus('speak'); };
     u.onend = () => { 
       state.ttsActive = false; 
@@ -1236,8 +1338,16 @@ function speak(text){
         resumeAmbient(); 
       }
     };
-    u.onerror = () => { state.ttsActive = false; if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle'); resumeAmbient(); };
-    speechSynthesis.speak(u);
+    u.onerror = () => { 
+      state.ttsActive = false; 
+      if(state.status==='speak') {
+        setStatus(state.ambientMode ? 'ambient' : 'idle');
+        resumeAmbient();
+      }
+    };
+    
+    // Slight delay helps iOS Safari catch up after cancel()
+    setTimeout(() => speechSynthesis.speak(u), 50);
   } catch(e) {
     logEvent('TTS Error: ' + e.message, 'err');
   }
@@ -1281,7 +1391,6 @@ function cleanWakeWord(text){
     const regex = new RegExp(`\\b${w}\\b`, 'gi');
     clean = clean.replace(regex, '');
   }
-  // Also handle cases where it's attached without spaces
   clean = clean.replace(/jarvis/gi, '').replace(/driver/gi, '').replace(/travis/gi, '');
   return clean.replace(/^[\s,.-]+/, '').trim();
 }
@@ -1356,7 +1465,6 @@ function initRecognition(){
       showWaveform(false);
     }
     
-    // Auto-resume for ambient mode
     if(state.ambientMode && !state.ambientPaused && !state.isProcessingCommand && !state.ttsActive){
       setTimeout(() => {
         try { r.start(); } catch(e){}
@@ -1367,9 +1475,6 @@ function initRecognition(){
   r.onerror = (e) => {
     logEvent('Speech recognition error: '+e.error,'err');
     if(e.error==='not-allowed') toast('Microphone permission denied','error');
-    if(e.error==='no-speech' && !state.ambientMode){
-      // just ignore
-    }
   };
 
   r.onresult = (e) => {
@@ -1392,7 +1497,6 @@ function initRecognition(){
 
         let command = final;
         if(!command || cleanWakeWord(command).length === 0){
-          // Only said "Jarvis", respond with greeting
           textInput.value = "Jarvis, are you there?";
         } else {
           textInput.value = cleanWakeWord(command);
@@ -1406,7 +1510,6 @@ function initRecognition(){
         return;
       }
     } else {
-      // Push-to-talk mode
       textInput.value = (final + interim).trim();
       autoResize();
       if(final){
@@ -1439,14 +1542,13 @@ function animateWaveform(){
 /* ---------- Mic button ---------- */
 micBtn.addEventListener('click', () => {
   if(state.ambientMode){
-    // In ambient mode, clicking mic forces a command window
     state.isProcessingCommand = true;
     state.ambientPaused = true;
     if(state.recognizing) try { state.recognition.stop(); } catch(e){}
     setTimeout(() => {
       state.recognition = initRecognition();
       state.recognition.continuous = false;
-      state.ambientMode = false; // temporarily disable to use PTT logic
+      state.ambientMode = false; 
       try { state.recognition.start(); } catch(e){}
       state.ambientMode = true;
     }, 100);
@@ -1539,7 +1641,7 @@ function formatText(t){
     .replace(/\n/g,'<br>');
 }
 
-/* ---------- Send Message (entry point) ---------- */
+/* ---------- Send Message ---------- */
 async function sendMessage(){
   const text = textInput.value.trim();
   if(!text) return;
@@ -1569,7 +1671,7 @@ async function sendMessage(){
   }
 }
 
-/* ---------- Conversation loop with tool calling ---------- */
+/* ---------- Conversation loop ---------- */
 async function runConversation(placeholderEl){
   const maxRounds = 5;
 
@@ -1632,7 +1734,7 @@ async function runConversation(placeholderEl){
   else { setStatus(state.ambientMode ? 'ambient' : 'idle'); resumeAmbient(); }
 }
 
-/* ---------- Stream chat with tool call support ---------- */
+/* ---------- Stream chat ---------- */
 async function streamChat(placeholderEl){
   const tools = getToolDefinitions();
   const body = {
@@ -1758,7 +1860,10 @@ document.addEventListener('keydown', (e) => {
   if(e.code==='Space' && document.activeElement !== textInput && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'SELECT'){
     e.preventDefault(); micBtn.click();
   }
-  if(e.key==='Escape' && !settingsModal.classList.contains('hidden')) closeSettingsFn();
+  if(e.key==='Escape') {
+    if(!settingsModal.classList.contains('hidden')) closeSettingsFn();
+    if(!memoryModal.classList.contains('hidden')) closeMemoryFn();
+  }
 });
 
 </script>
