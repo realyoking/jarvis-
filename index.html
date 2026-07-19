@@ -484,17 +484,74 @@
         <p class="text-[10px] text-slate-500 mt-2 font-mono">Tools execute locally in your browser. Weather uses Open-Meteo (no key needed).</p>
       </div>
 
-      <div class="flex items-center justify-between glass rounded-xl px-4 py-3">
-        <div>
-          <div class="text-sm">Voice Output (TTS)</div>
-          <div class="text-[10px] text-slate-400 font-mono">Read responses aloud</div>
+      <!-- TTS Settings -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between glass rounded-xl px-4 py-3">
+          <div>
+            <div class="text-sm">Voice Output (TTS)</div>
+            <div class="text-[10px] text-slate-400 font-mono">Read responses aloud</div>
+          </div>
+          <div id="cfgTtsToggle" class="toggle on"></div>
         </div>
-        <div id="cfgTtsToggle" class="toggle on"></div>
-      </div>
 
-      <div>
-        <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Voice</label>
-        <select id="cfgVoice" class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono"><option value="">Auto</option></select>
+        <div>
+          <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">TTS Engine</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button id="ttsBrowserBtn" class="btn btn-primary rounded-lg py-2 text-xs font-mono">Browser</button>
+            <button id="ttsApiBtn" class="btn rounded-lg py-2 text-xs font-mono">OpenAI API</button>
+            <button id="ttsCustomBtn" class="btn rounded-lg py-2 text-xs font-mono">Custom</button>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1 font-mono">Use Custom for external TTS providers like FreeTTS, ElevenLabs, etc.</p>
+        </div>
+
+        <div id="browserTtsConfig">
+          <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Browser Voice</label>
+          <select id="cfgVoice" class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono"><option value="">Auto</option></select>
+        </div>
+
+        <div id="apiTtsConfig" class="hidden space-y-2">
+          <div>
+            <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">API TTS Model</label>
+            <input id="cfgApiTtsModel" type="text" placeholder="tts-1" value="tts-1" class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono">
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">OpenAI uses 'tts-1' or 'tts-1-hd'. Groq uses 'playai-tts'.</p>
+          </div>
+          <div>
+            <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">API Voice</label>
+            <select id="cfgApiTtsVoice" class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono">
+              <option value="alloy">Alloy</option>
+              <option value="echo">Echo</option>
+              <option value="fable">Fable</option>
+              <option value="onyx" selected>Onyx (Deep Male)</option>
+              <option value="nova">Nova</option>
+              <option value="shimmer">Shimmer</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="customTtsConfig" class="hidden space-y-2">
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70">Custom API Configuration</label>
+            <button id="loadFreeTtsBtn" class="text-[10px] font-mono uppercase tracking-wider text-purple-300/70 hover:text-purple-300 transition border border-purple-300/30 rounded-md px-2 py-1">Load FreeTTS Defaults</button>
+          </div>
+          <div>
+            <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Custom TTS Endpoint URL</label>
+            <input id="cfgCustomTtsUrl" type="text" placeholder="https://api.freetts.org/v1/tts" class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono">
+          </div>
+          <div>
+            <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Custom TTS Headers (JSON)</label>
+            <textarea id="cfgCustomTtsHeaders" rows="2" placeholder='{"Content-Type": "application/json"}' class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono"></textarea>
+          </div>
+          <div>
+            <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Custom TTS Body (JSON)</label>
+            <textarea id="cfgCustomTtsBody" rows="3" placeholder='{"text": "{{text}}", "voice": "en-US", "api_key": "YOUR_KEY"}' class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono"></textarea>
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">Use <code class="bg-black/40 px-1 rounded">{{text}}</code> for the spoken text, and <code class="bg-black/40 px-1 rounded">{{key}}</code> for your main API key.</p>
+          </div>
+          <div>
+            <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Audio JSON Path (Leave empty if response is direct audio file)</label>
+            <input id="cfgCustomTtsPath" type="text" placeholder="data.audio or url" class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono">
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">If the API returns JSON, specify the path to the audio URL or base64 string.</p>
+          </div>
+        </div>
       </div>
 
       <div class="flex gap-2 pt-2">
@@ -543,12 +600,20 @@ const state = {
   config: {
     baseUrl: '', apiKey: '', model: '',
     system: '', temperature: 0.7, maxTokens: 1024,
-    tts: true, voice: '',
+    tts: true, 
+    ttsEngine: 'browser', // 'browser', 'api', 'custom'
+    voice: '',
+    apiTtsModel: 'tts-1',
+    apiTtsVoice: 'onyx',
+    customTtsUrl: '',
+    customTtsHeaders: '{\n  "Content-Type": "application/json"\n}',
+    customTtsBody: '{\n  "text": "{{text}}",\n  "voice": "en-US"\n}',
+    customTtsPath: '',
     tools: { time: true, date: true, weather: true, calculator: true, memory: true }
   },
   messages: [],
   memories: [],
-  status: 'idle', // idle | listen | ambient | think | tools | speak | error
+  status: 'idle',
   recognition: null,
   recognizing: false,
   ttsActive: false,
@@ -556,7 +621,8 @@ const state = {
   fetchedModels: [],
   ambientMode: false,
   ambientPaused: false,
-  isProcessingCommand: false
+  isProcessingCommand: false,
+  currentAudio: null
 };
 
 /* ---------- DOM ---------- */
@@ -593,6 +659,13 @@ const newMemoryInput = $('newMemoryInput');
 const addMemoryBtn = $('addMemoryBtn');
 const memoryListMain = $('memoryListMain');
 const memoryListSide = $('memoryListSide');
+
+const ttsBrowserBtn = $('ttsBrowserBtn');
+const ttsApiBtn = $('ttsApiBtn');
+const ttsCustomBtn = $('ttsCustomBtn');
+const browserTtsConfig = $('browserTtsConfig');
+const apiTtsConfig = $('apiTtsConfig');
+const customTtsConfig = $('customTtsConfig');
 
 /* ---------- Toast ---------- */
 function toast(msg, type='info'){
@@ -782,7 +855,6 @@ function saveMemories(){
 function renderMemories(){
   const emptyHtml = '<div class="text-[10px] text-slate-500 font-mono">No memories saved yet.</div>';
   
-  // Sidebar
   memoryListSide.innerHTML = '';
   if(state.memories.length === 0){
     memoryListSide.innerHTML = emptyHtml;
@@ -795,7 +867,6 @@ function renderMemories(){
     });
   }
 
-  // Main Modal
   memoryListMain.innerHTML = '';
   if(state.memories.length === 0){
     memoryListMain.innerHTML = '<div class="text-center text-slate-500 text-sm py-8 font-mono">Memory vault is empty.<br>Tell JARVIS something to remember, or add one manually.</div>';
@@ -1055,6 +1126,9 @@ function loadConfig(){
       Object.assign(state.config, parsed);
       if(!state.config.tools) state.config.tools = { time:true, date:true, weather:true, calculator:true, memory:true };
       if(state.config.tools.memory === undefined) state.config.tools.memory = true;
+      if(!state.config.ttsEngine) state.config.ttsEngine = 'browser';
+      if(!state.config.customTtsHeaders) state.config.customTtsHeaders = '{\n  "Content-Type": "application/json"\n}';
+      if(!state.config.customTtsBody) state.config.customTtsBody = '{\n  "text": "{{text}}",\n  "voice": "en-US"\n}';
     }
   } catch(e){}
   if(!state.config.system){
@@ -1062,6 +1136,8 @@ function loadConfig(){
   }
   if(!state.config.temperature) state.config.temperature = 0.7;
   if(!state.config.maxTokens) state.config.maxTokens = 1024;
+  if(!state.config.apiTtsModel) state.config.apiTtsModel = 'tts-1';
+  if(!state.config.apiTtsVoice) state.config.apiTtsVoice = 'onyx';
 }
 function saveConfig(){ localStorage.setItem('jarvis_config', JSON.stringify(state.config)); }
 
@@ -1073,7 +1149,33 @@ function applyConfigToUI(){
   $('cfgTemp').value = state.config.temperature;
   $('cfgMaxTokens').value = state.config.maxTokens;
   $('cfgVoice').value = state.config.voice || '';
+  $('cfgApiTtsModel').value = state.config.apiTtsModel;
+  $('cfgApiTtsVoice').value = state.config.apiTtsVoice;
+  $('cfgCustomTtsUrl').value = state.config.customTtsUrl;
+  $('cfgCustomTtsHeaders').value = state.config.customTtsHeaders;
+  $('cfgCustomTtsBody').value = state.config.customTtsBody;
+  $('cfgCustomTtsPath').value = state.config.customTtsPath;
   setTtsToggle(state.config.tts);
+  
+  // TTS engine toggle UI
+  ttsBrowserBtn.classList.remove('btn-primary');
+  ttsApiBtn.classList.remove('btn-primary');
+  ttsCustomBtn.classList.remove('btn-primary');
+  browserTtsConfig.classList.add('hidden');
+  apiTtsConfig.classList.add('hidden');
+  customTtsConfig.classList.add('hidden');
+
+  if(state.config.ttsEngine === 'api') {
+    ttsApiBtn.classList.add('btn-primary');
+    apiTtsConfig.classList.remove('hidden');
+  } else if(state.config.ttsEngine === 'custom') {
+    ttsCustomBtn.classList.add('btn-primary');
+    customTtsConfig.classList.remove('hidden');
+  } else {
+    ttsBrowserBtn.classList.add('btn-primary');
+    browserTtsConfig.classList.remove('hidden');
+  }
+  
   document.querySelectorAll('.checkbox-card').forEach(card => {
     const tool = card.dataset.tool;
     if(state.config.tools[tool]) card.classList.add('active');
@@ -1227,6 +1329,41 @@ memoryModal.addEventListener('click',(e)=>{ if(e.target===memoryModal) closeMemo
   i.type = i.type==='password' ? 'text' : 'password';
 });
 
+ttsBrowserBtn.addEventListener('click', () => {
+  ttsBrowserBtn.classList.add('btn-primary');
+  ttsApiBtn.classList.remove('btn-primary');
+  ttsCustomBtn.classList.remove('btn-primary');
+  browserTtsConfig.classList.remove('hidden');
+  apiTtsConfig.classList.add('hidden');
+  customTtsConfig.classList.add('hidden');
+});
+
+ttsApiBtn.addEventListener('click', () => {
+  ttsApiBtn.classList.add('btn-primary');
+  ttsBrowserBtn.classList.remove('btn-primary');
+  ttsCustomBtn.classList.remove('btn-primary');
+  apiTtsConfig.classList.remove('hidden');
+  browserTtsConfig.classList.add('hidden');
+  customTtsConfig.classList.add('hidden');
+});
+
+ttsCustomBtn.addEventListener('click', () => {
+  ttsCustomBtn.classList.add('btn-primary');
+  ttsBrowserBtn.classList.remove('btn-primary');
+  ttsApiBtn.classList.remove('btn-primary');
+  customTtsConfig.classList.remove('hidden');
+  browserTtsConfig.classList.add('hidden');
+  apiTtsConfig.classList.add('hidden');
+});
+
+ $('loadFreeTtsBtn').addEventListener('click', () => {
+  $('cfgCustomTtsUrl').value = 'https://api.freetts.org/v1/tts';
+  $('cfgCustomTtsHeaders').value = '{\n  "Content-Type": "application/json"\n}';
+  $('cfgCustomTtsBody').value = '{\n  "text": "{{text}}",\n  "voice": "en-US",\n  "api_key": "{{key}}"\n}';
+  $('cfgCustomTtsPath').value = 'audio';
+  toast('Loaded FreeTTS defaults. Make sure to use your FreeTTS API Key in the main API Key field.', 'info');
+});
+
 document.querySelectorAll('.checkbox-card').forEach(card => {
   card.addEventListener('click', () => {
     const tool = card.dataset.tool;
@@ -1242,6 +1379,13 @@ saveBtn.addEventListener('click', () => {
   state.config.temperature = parseFloat($('cfgTemp').value) || 0.7;
   state.config.maxTokens = parseInt($('cfgMaxTokens').value) || 1024;
   state.config.voice = $('cfgVoice').value;
+  state.config.ttsEngine = ttsApiBtn.classList.contains('btn-primary') ? 'api' : (ttsCustomBtn.classList.contains('btn-primary') ? 'custom' : 'browser');
+  state.config.apiTtsModel = $('cfgApiTtsModel').value.trim() || 'tts-1';
+  state.config.apiTtsVoice = $('cfgApiTtsVoice').value;
+  state.config.customTtsUrl = $('cfgCustomTtsUrl').value.trim();
+  state.config.customTtsHeaders = $('cfgCustomTtsHeaders').value;
+  state.config.customTtsBody = $('cfgCustomTtsBody').value;
+  state.config.customTtsPath = $('cfgCustomTtsPath').value.trim();
   document.querySelectorAll('.checkbox-card').forEach(card => {
     state.config.tools[card.dataset.tool] = card.classList.contains('active');
   });
@@ -1280,7 +1424,6 @@ testBtn.addEventListener('click', async () => {
 
 /* ---------- TTS ---------- */
 let ttsUnlocked = false;
-// iOS Safari requires TTS to be triggered by a user action initially.
 function unlockTTS() {
   if (ttsUnlocked || !('speechSynthesis' in window)) return;
   try {
@@ -1290,7 +1433,6 @@ function unlockTTS() {
     ttsUnlocked = true;
   } catch(e) {}
 }
-// Unlock on the very first touch/click anywhere
 document.addEventListener('click', unlockTTS, { once: true });
 document.addEventListener('touchstart', unlockTTS, { once: true });
 
@@ -1312,23 +1454,149 @@ if('speechSynthesis' in window){
   speechSynthesis.onvoiceschanged = loadVoices;
 }
 
-function speak(text){
-  if(!state.config.tts || !('speechSynthesis' in window)) return;
+async function speak(text){
+  if(!state.config.tts) return;
+  
+  stopSpeaking();
+  
+  const cleanText = text.replace(/[*_`#>]/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/```[\s\S]*?```/g,'').trim();
+  if(!cleanText) return;
+  
+  if(state.config.ttsEngine === 'api') {
+    try {
+      setStatus('speak');
+      logEvent('Generating API TTS...', 'info');
+      const res = await fetch(`${state.config.baseUrl}/audio/speech`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.config.apiKey}` },
+        body: JSON.stringify({
+          model: state.config.apiTtsModel,
+          voice: state.config.apiTtsVoice,
+          input: cleanText
+        })
+      });
+      
+      if(!res.ok) {
+        const errText = await res.text();
+        throw new Error(`TTS API Error: ${res.status} - ${errText.slice(0,100)}`);
+      }
+      
+      const blob = await res.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      state.currentAudio = new Audio(audioUrl);
+      state.currentAudio.onended = () => {
+        state.ttsActive = false;
+        if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle');
+        URL.revokeObjectURL(audioUrl);
+        state.currentAudio = null;
+        resumeAmbient();
+      };
+      state.currentAudio.onerror = () => {
+        throw new Error('Audio playback failed');
+      };
+      
+      await state.currentAudio.play();
+      state.ttsActive = true;
+      logEvent('API TTS playback started', 'ok');
+    } catch(e) {
+      logEvent('API TTS Error: ' + e.message, 'err');
+      toast('API TTS failed. Check settings. Falling back to browser voice.', 'error');
+      speakBrowser(cleanText);
+    }
+  } else if(state.config.ttsEngine === 'custom') {
+    try {
+      setStatus('speak');
+      logEvent('Generating Custom API TTS...', 'info');
+
+      // Parse and replace placeholders in headers
+      const headersObj = JSON.parse(state.config.customTtsHeaders || '{}');
+      const finalHeaders = {};
+      for(const key in headersObj) {
+        finalHeaders[key] = headersObj[key].replaceAll('{{key}}', state.config.apiKey).replaceAll('{{text}}', cleanText);
+      }
+
+      // Parse and replace placeholders in body
+      let bodyObj = JSON.parse(state.config.customTtsBody || '{}');
+      const traverseAndReplace = (obj) => {
+        for(const k in obj) {
+          if(typeof obj[k] === 'string') {
+            obj[k] = obj[k].replaceAll('{{key}}', state.config.apiKey).replaceAll('{{text}}', cleanText);
+          } else if(typeof obj[k] === 'object' && obj[k] !== null) {
+            traverseAndReplace(obj[k]);
+          }
+        }
+      };
+      traverseAndReplace(bodyObj);
+
+      const res = await fetch(state.config.customTtsUrl, {
+        method: 'POST',
+        headers: finalHeaders,
+        body: JSON.stringify(bodyObj)
+      });
+
+      if(!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Custom TTS Error: ${res.status} - ${errText.slice(0,100)}`);
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      let audioUrl;
+
+      if(contentType.includes('application/json')) {
+        const data = await res.json();
+        const path = state.config.customTtsPath.split('.').filter(Boolean);
+        let current = data;
+        for(const p of path) { current = current[p]; }
+        if(!current) throw new Error('Audio path not found in JSON response');
+        
+        if(current.startsWith('http') || current.startsWith('data:audio')) {
+          audioUrl = current;
+        } else {
+          // Assume it's base64
+          audioUrl = `data:audio/mp3;base64,${current}`;
+        }
+      } else {
+        // Assume direct audio blob
+        const blob = await res.blob();
+        audioUrl = URL.createObjectURL(blob);
+      }
+
+      state.currentAudio = new Audio(audioUrl);
+      state.currentAudio.onended = () => {
+        state.ttsActive = false;
+        if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle');
+        if(audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
+        state.currentAudio = null;
+        resumeAmbient();
+      };
+      state.currentAudio.onerror = () => {
+        throw new Error('Audio playback failed');
+      };
+
+      await state.currentAudio.play();
+      state.ttsActive = true;
+      logEvent('Custom TTS playback started', 'ok');
+
+    } catch(e) {
+      logEvent('Custom TTS Error: ' + e.message, 'err');
+      toast('Custom TTS failed. Check configuration. Falling back to browser voice.', 'error');
+      speakBrowser(cleanText);
+    }
+  } else {
+    speakBrowser(cleanText);
+  }
+}
+
+function speakBrowser(text) {
+  if (!('speechSynthesis' in window)) return;
   try {
-    // Stop any current speech
     if (speechSynthesis.speaking || speechSynthesis.pending) {
       speechSynthesis.cancel();
     }
     
-    const clean = text.replace(/[*_`#>]/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/```[\s\S]*?```/g,'').trim();
-    if(!clean) return;
-    
-    const u = new SpeechSynthesisUtterance(clean);
+    const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.02; u.pitch = 1.0; u.volume = 1;
-    if(state.config.voice){ 
-      const v = state.voices.find(x=>x.name===state.config.voice); 
-      if(v) u.voice = v; 
-    }
+    if(state.config.voice){ const v = state.voices.find(x=>x.name===state.config.voice); if(v) u.voice = v; }
     
     u.onstart = () => { state.ttsActive = true; if(state.status!=='think'&&state.status!=='tools') setStatus('speak'); };
     u.onend = () => { 
@@ -1346,14 +1614,17 @@ function speak(text){
       }
     };
     
-    // Slight delay helps iOS Safari catch up after cancel()
-    setTimeout(() => speechSynthesis.speak(u), 50);
+    setTimeout(() => speechSynthesis.speak(u), 100);
   } catch(e) {
-    logEvent('TTS Error: ' + e.message, 'err');
+    logEvent('Browser TTS Error: ' + e.message, 'err');
   }
 }
 
 function stopSpeaking(){ 
+  if(state.currentAudio) {
+    state.currentAudio.pause();
+    state.currentAudio = null;
+  }
   if('speechSynthesis' in window) speechSynthesis.cancel(); 
   state.ttsActive = false; 
 }
