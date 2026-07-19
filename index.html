@@ -18,6 +18,7 @@
     --amber-soft:#ffc59e;
     --danger:#ff4d6d;
     --green:#43e97b;
+    --purple:#b388ff;
     --text:#e8f4ff;
     --muted:#7d8aa3;
     --glass-bg:rgba(20,30,48,0.45);
@@ -73,8 +74,9 @@
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;box-shadow:0 0 12px currentColor}
   .dot.idle{background:var(--cyan);color:var(--cyan)}
   .dot.listen{background:var(--green);color:var(--green);animation:pulse 1s infinite}
+  .dot.ambient{background:var(--cyan);color:var(--cyan);animation:pulse 2s infinite}
   .dot.think{background:var(--amber);color:var(--amber);animation:pulse 0.8s infinite}
-  .dot.tools{background:#b388ff;color:#b388ff;animation:pulse 0.7s infinite}
+  .dot.tools{background:var(--purple);color:var(--purple);animation:pulse 0.7s infinite}
   .dot.speak{background:var(--amber);color:var(--amber);animation:pulse 1.2s infinite}
   .dot.error{background:var(--danger);color:var(--danger)}
   @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
@@ -98,6 +100,12 @@
     box-shadow:0 0 24px rgba(0,229,255,0.25),inset 0 1px 0 rgba(255,255,255,0.15);
   }
   .btn-primary:hover{box-shadow:0 0 32px rgba(0,229,255,0.4),inset 0 1px 0 rgba(255,255,255,0.2)}
+  .btn-active{
+    background:linear-gradient(180deg,rgba(67,233,123,0.25),rgba(67,233,123,0.05)) !important;
+    border-color:rgba(67,233,123,0.5) !important;
+    color:#bfffd9 !important;
+    box-shadow:0 0 16px rgba(67,233,123,0.2) !important;
+  }
 
   .mic-btn{
     position:relative;width:64px;height:64px;border-radius:50%;
@@ -115,6 +123,15 @@
   .mic-btn.recording::before{
     content:'';position:absolute;inset:-8px;border-radius:50%;
     border:2px solid rgba(255,77,109,0.5);animation:micRing 1.5s infinite;
+  }
+  .mic-btn.ambient{
+    background:radial-gradient(circle at 30% 30%,rgba(67,233,123,0.35),rgba(67,233,123,0.05));
+    border-color:rgba(67,233,123,0.6);
+    box-shadow:0 0 30px rgba(67,233,123,0.3),inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .mic-btn.ambient::before{
+    content:'';position:absolute;inset:-8px;border-radius:50%;
+    border:2px solid rgba(67,233,123,0.4);animation:micRing 2s infinite;
   }
   @keyframes micRing{0%{transform:scale(1);opacity:1}100%{transform:scale(1.5);opacity:0}}
 
@@ -138,7 +155,6 @@
     background:linear-gradient(180deg,rgba(179,136,255,0.10),rgba(179,136,255,0.03));
     border:1px solid rgba(179,136,255,0.25);font-size:12px;max-width:90%;margin:0 auto;
   }
-  .bubble.tool-bubble.collapsed .tool-detail{display:none}
   @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
   .input{
@@ -194,6 +210,12 @@
   .checkbox-card.active .cb svg{display:block}
   .checkbox-card .cb svg{display:none;width:10px;height:10px}
 
+  .memory-item{
+    display:flex;justify-content:space-between;align-items:start;gap:8px;
+    padding:8px;border-radius:6px;background:rgba(0,229,255,0.04);
+    border:1px solid rgba(0,229,255,0.1);font-size:11px;
+  }
+
   @media (prefers-reduced-motion: reduce){*{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
   @media (max-width: 768px){.reactor-wrap{max-width:220px}.side-panel{display:none}}
 </style>
@@ -223,7 +245,11 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <button id="ttsToggleBtn" class="btn rounded-lg px-3 py-2 text-xs font-mono uppercase tracking-wider flex items-center gap-2" title="Toggle voice output">
+      <button id="ambientBtn" class="btn rounded-lg px-3 py-2 text-xs font-mono uppercase tracking-wider flex items-center gap-2" title="Toggle wake word 'Jarvis'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+        <span class="hidden sm:inline" id="ambientLabel">Wake Off</span>
+      </button>
+      <button id="ttsToggleBtn" class="btn btn-primary rounded-lg px-3 py-2 text-xs font-mono uppercase tracking-wider flex items-center gap-2" title="Toggle voice output">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
         <span class="hidden sm:inline" id="ttsLabel">Voice On</span>
       </button>
@@ -257,6 +283,14 @@
       <div class="glass rounded-2xl p-4">
         <div class="text-[10px] font-mono text-cyan-400/60 uppercase tracking-widest mb-3">Active Tools</div>
         <div id="toolsDisplay" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <div class="glass rounded-2xl p-4 flex-1 overflow-hidden flex flex-col">
+        <div class="flex justify-between items-center mb-3">
+          <div class="text-[10px] font-mono text-cyan-400/60 uppercase tracking-widest">User Memory</div>
+          <button id="clearMemoryBtn" class="text-[9px] font-mono uppercase tracking-wider text-slate-500 hover:text-red-400 transition">Clear</button>
+        </div>
+        <div id="memoryList" class="space-y-1.5 overflow-y-auto scroll text-cyan-200/80" style="max-height:120px"></div>
       </div>
 
       <div class="glass rounded-2xl p-4 flex-1 overflow-hidden">
@@ -301,7 +335,7 @@
       </div>
 
       <div class="text-[10px] font-mono text-slate-500 mt-2 text-center">
-        Press <kbd class="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400">Space</kbd> on mic to talk · <kbd class="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400">Enter</kbd> to send · Tools: <span id="toolCount" class="text-purple-300/60">4 enabled</span>
+        <kbd class="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400">Space</kbd> Push-to-talk · Say <span class="text-green-400">"Jarvis"</span> when Wake is on · <kbd class="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400">Enter</kbd> to send
       </div>
     </section>
   </main>
@@ -313,6 +347,7 @@
       <span class="px-6">// Speech Recognition Active</span>
       <span class="px-6">// Neural Mesh Online</span>
       <span class="px-6">// Tool Calling Enabled</span>
+      <span class="px-6">// Memory Core Synced</span>
       <span class="px-6">// Encrypted Channel</span>
       <span class="px-6">// BYOK Protocol Engaged</span>
       <span class="px-6">// Stark Industries Private Network</span>
@@ -320,6 +355,7 @@
       <span class="px-6">// Speech Recognition Active</span>
       <span class="px-6">// Neural Mesh Online</span>
       <span class="px-6">// Tool Calling Enabled</span>
+      <span class="px-6">// Memory Core Synced</span>
       <span class="px-6">// Encrypted Channel</span>
       <span class="px-6">// BYOK Protocol Engaged</span>
     </div>
@@ -386,7 +422,7 @@
 
       <div>
         <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">System Prompt</label>
-        <textarea id="cfgSystem" rows="3" class="input w-full rounded-lg px-3 py-2.5 text-sm resize-none">You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as "Sir" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, and calculations.</textarea>
+        <textarea id="cfgSystem" rows="3" class="input w-full rounded-lg px-3 py-2.5 text-sm resize-none">You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as "Sir" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, calculations, and saving memories.</textarea>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
@@ -432,13 +468,20 @@
               <div class="text-[9px] text-slate-500 font-mono">calculate</div>
             </div>
           </div>
+          <div class="checkbox-card active col-span-2" data-tool="memory">
+            <div class="cb"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <div>
+              <div class="text-xs font-mono text-cyan-100">Memory (Long-term)</div>
+              <div class="text-[9px] text-slate-500 font-mono">save_memory, clear_memory</div>
+            </div>
+          </div>
         </div>
         <p class="text-[10px] text-slate-500 mt-2 font-mono">Tools execute locally in your browser. Weather uses Open-Meteo (no key needed).</p>
       </div>
 
       <div class="flex items-center justify-between glass rounded-xl px-4 py-3">
         <div>
-          <div class="text-sm">Voice Output</div>
+          <div class="text-sm">Voice Output (TTS)</div>
           <div class="text-[10px] text-slate-400 font-mono">Read responses aloud</div>
         </div>
         <div id="cfgTtsToggle" class="toggle on"></div>
@@ -461,7 +504,7 @@
 
 <script>
 /* ============================================================
-   J.A.R.V.I.S — BYOK AI Assistant with Tool Calling
+   J.A.R.V.I.S — BYOK AI Assistant with Ambient Listening & Memory
    ============================================================ */
 
 /* ---------- State ---------- */
@@ -470,15 +513,19 @@ const state = {
     baseUrl: '', apiKey: '', model: '',
     system: '', temperature: 0.7, maxTokens: 1024,
     tts: true, voice: '',
-    tools: { time: true, date: true, weather: true, calculator: true }
+    tools: { time: true, date: true, weather: true, calculator: true, memory: true }
   },
   messages: [],
-  status: 'idle',
+  memories: [],
+  status: 'idle', // idle | listen | ambient | think | tools | speak | error
   recognition: null,
   recognizing: false,
   ttsActive: false,
   voices: [],
-  fetchedModels: []
+  fetchedModels: [],
+  ambientMode: false,
+  ambientPaused: false,
+  isProcessingCommand: false
 };
 
 /* ---------- DOM ---------- */
@@ -501,7 +548,11 @@ const waveform = $('waveform');
 const eventLog = $('eventLog');
 const ttsToggleBtn = $('ttsToggleBtn');
 const ttsLabel = $('ttsLabel');
+const ambientBtn = $('ambientBtn');
+const ambientLabel = $('ambientLabel');
 const clearBtn = $('clearBtn');
+const clearMemoryBtn = $('clearMemoryBtn');
+const memoryList = $('memoryList');
 const fetchModelsBtn = $('fetchModelsBtn');
 
 /* ---------- Toast ---------- */
@@ -529,12 +580,19 @@ function logEvent(msg, type='info'){
 function setStatus(s){
   state.status = s;
   statusDot.className = 'dot ' + s;
-  const map = { idle:'System Ready', listen:'Listening', think:'Processing', tools:'Tool Execution', speak:'Speaking', error:'Error' };
+  const map = { idle:'System Ready', listen:'Listening', ambient:'Ambient Listening', think:'Processing', tools:'Tool Execution', speak:'Speaking', error:'Error' };
   statusText.textContent = map[s] || 'System Ready';
-  const reactorMap = { idle:'Standby', listen:'Listening', think:'Computing', tools:'Tool Call', speak:'Responding', error:'Alert' };
+  const reactorMap = { idle:'Standby', listen:'Listening', ambient:'Ambient', think:'Computing', tools:'Tool Call', speak:'Responding', error:'Alert' };
   reactorState.textContent = reactorMap[s] || 'Standby';
-  reactorState.style.color = s==='error' ? '#ff8a9a' : s==='listen' ? '#7fffaa' : s==='think' ? '#ffc59e' : s==='tools' ? '#cbb0ff' : s==='speak' ? '#ffc59e' : 'rgba(127,239,255,0.8)';
+  reactorState.style.color = s==='error' ? '#ff8a9a' : s==='listen' ? '#7fffaa' : s==='ambient' ? '#7fefff' : s==='think' ? '#ffc59e' : s==='tools' ? '#cbb0ff' : s==='speak' ? '#ffc59e' : 'rgba(127,239,255,0.8)';
   reactorTool.classList.toggle('hidden', s !== 'tools');
+  
+  // update mic button visual
+  if(state.ambientMode && !state.isProcessingCommand) {
+    micBtn.classList.add('ambient');
+  } else {
+    micBtn.classList.remove('ambient');
+  }
 }
 
 /* ---------- Particles ---------- */
@@ -591,6 +649,7 @@ function drawReactor(t){
 
   const glowColor = state.status==='error' ? '255,77,109' :
                     state.status==='listen' ? '67,233,123' :
+                    state.status==='ambient' ? '0,229,255' :
                     state.status==='tools' ? '179,136,255' :
                     state.status==='think' || state.status==='speak' ? '255,138,61' : '0,229,255';
 
@@ -635,7 +694,7 @@ function drawReactor(t){
   }
   rCtx.restore();
 
-  const pulseSpeed = state.status==='think' ? 0.012 : state.status==='speak' ? 0.018 : state.status==='tools' ? 0.016 : state.status==='listen' ? 0.014 : 0.004;
+  const pulseSpeed = state.status==='think' ? 0.012 : state.status==='speak' ? 0.018 : state.status==='tools' ? 0.016 : state.status==='listen' ? 0.014 : state.status==='ambient' ? 0.006 : 0.004;
   const pulse = (Math.sin(t*pulseSpeed)+1)/2;
   const coreR = maxR*0.22 + pulse*4;
   const coreGrad = rCtx.createRadialGradient(cx,cy,0,cx,cy,coreR);
@@ -670,6 +729,61 @@ function updateDiagnostics(){
 }
 setInterval(updateDiagnostics,1500); updateDiagnostics();
 
+/* ---------- Memory Management ---------- */
+function loadMemories(){
+  try {
+    const raw = localStorage.getItem('jarvis_memories');
+    state.memories = raw ? JSON.parse(raw) : [];
+  } catch(e){ state.memories = []; }
+  renderMemories();
+}
+function saveMemories(){
+  localStorage.setItem('jarvis_memories', JSON.stringify(state.memories));
+  renderMemories();
+}
+function renderMemories(){
+  memoryList.innerHTML = '';
+  if(state.memories.length === 0){
+    memoryList.innerHTML = '<div class="text-[10px] text-slate-500 font-mono">No memories saved yet.</div>';
+    return;
+  }
+  state.memories.forEach((m, i) => {
+    const item = document.createElement('div');
+    item.className = 'memory-item';
+    item.innerHTML = `
+      <span class="text-cyan-200/90 flex-1">${escapeHtml(m)}</span>
+      <button data-idx="${i}" class="del-memory text-slate-500 hover:text-red-400 transition flex-shrink-0">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
+    memoryList.appendChild(item);
+  });
+  memoryList.querySelectorAll('.del-memory').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      state.memories.splice(idx, 1);
+      saveMemories();
+      logEvent('Memory deleted manually', 'info');
+    });
+  });
+}
+clearMemoryBtn.addEventListener('click', () => {
+  state.memories = [];
+  saveMemories();
+  toast('All memories cleared', 'success');
+  logEvent('All memories cleared', 'warn');
+});
+
+function getSystemPromptWithContext(){
+  let prompt = state.config.system;
+  if(state.memories.length > 0){
+    prompt += '\n\nUser Memories (long-term context about the user):\n';
+    state.memories.forEach(m => { prompt += `- ${m}\n`; });
+    prompt += 'Use these memories to personalize your responses. Do not explicitly mention that you have these memories unless asked.';
+  }
+  return prompt;
+}
+
 /* ---------- Tool Definitions ---------- */
 function getToolDefinitions(){
   const tools = [];
@@ -679,12 +793,7 @@ function getToolDefinitions(){
       function: {
         name: "get_current_time",
         description: "Get the current time. Use when the user asks what time it is.",
-        parameters: {
-          type: "object",
-          properties: {
-            timezone: { type: "string", description: "Optional IANA timezone, e.g. America/New_York, Europe/London, Asia/Tokyo. If not specified, uses the user's local timezone." }
-          }
-        }
+        parameters: { type: "object", properties: { timezone: { type: "string", description: "Optional IANA timezone, e.g. America/New_York" } } }
       }
     });
   }
@@ -694,12 +803,7 @@ function getToolDefinitions(){
       function: {
         name: "get_current_date",
         description: "Get the current date. Use when the user asks what the date is or what day it is.",
-        parameters: {
-          type: "object",
-          properties: {
-            timezone: { type: "string", description: "Optional IANA timezone." }
-          }
-        }
+        parameters: { type: "object", properties: { timezone: { type: "string", description: "Optional IANA timezone." } } }
       }
     });
   }
@@ -713,7 +817,7 @@ function getToolDefinitions(){
           type: "object",
           properties: {
             city: { type: "string", description: "City name, e.g. London, Tokyo, New York" },
-            country: { type: "string", description: "Country name or code for disambiguation, e.g. US, UK, Japan" }
+            country: { type: "string", description: "Country name or code for disambiguation, e.g. US, UK" }
           },
           required: ["city"]
         }
@@ -725,14 +829,34 @@ function getToolDefinitions(){
       type: "function",
       function: {
         name: "calculate",
-        description: "Evaluate a mathematical expression. Supports +, -, *, /, parentheses, and functions: sqrt, sin, cos, tan, log, log10, exp, abs, round, floor, ceil, pow, min, max. Constants: PI, E.",
+        description: "Evaluate a mathematical expression. Supports +, -, *, /, parentheses, and functions: sqrt, sin, cos, tan, log, pow. Constants: PI, E.",
         parameters: {
           type: "object",
-          properties: {
-            expression: { type: "string", description: "Math expression to evaluate, e.g. '2+2*3', 'sqrt(144)', 'sin(PI/2)', 'pow(2,10)'" }
-          },
+          properties: { expression: { type: "string", description: "Math expression, e.g. '2+2*3', 'sqrt(144)'" } },
           required: ["expression"]
         }
+      }
+    });
+  }
+  if(state.config.tools.memory){
+    tools.push({
+      type: "function",
+      function: {
+        name: "save_memory",
+        description: "Save a fact, preference, or important information about the user to long-term local memory. Use this proactively when the user mentions something personal (e.g., name, location, job, preferences).",
+        parameters: {
+          type: "object",
+          properties: { fact: { type: "string", description: "The fact to remember, e.g. 'User prefers dark mode', 'User's name is Tony'" } },
+          required: ["fact"]
+        }
+      }
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "clear_memory",
+        description: "Clear all saved memories about the user. Use when the user explicitly asks to forget everything.",
+        parameters: { type: "object", properties: {} }
       }
     });
   }
@@ -755,6 +879,18 @@ const WMO_CODES = {
 
 async function executeTool(name, args){
   logEvent(`Tool called: ${name}(${JSON.stringify(args)})`, 'tool');
+
+  if(name === 'save_memory'){
+    state.memories.push(args.fact);
+    saveMemories();
+    return `Memory saved successfully: "${args.fact}"`;
+  }
+
+  if(name === 'clear_memory'){
+    state.memories = [];
+    saveMemories();
+    return 'All memories have been cleared.';
+  }
 
   if(name === 'get_current_time'){
     const tz = args.timezone;
@@ -785,7 +921,6 @@ async function executeTool(name, args){
 
   if(name === 'get_weather'){
     const { city, country } = args;
-    // Step 1: Geocode
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
     const geoRes = await fetch(geoUrl);
     if(!geoRes.ok) throw new Error('Geocoding failed');
@@ -795,7 +930,6 @@ async function executeTool(name, args){
     const lat = loc.latitude, lon = loc.longitude;
     const locationName = [loc.name, loc.admin1, loc.country].filter(Boolean).join(', ');
 
-    // Step 2: Get weather
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl&timezone=auto`;
     const wRes = await fetch(weatherUrl);
     if(!wRes.ok) throw new Error('Weather fetch failed');
@@ -836,6 +970,10 @@ function degToCompass(deg){
   return dirs[Math.round(deg/22.5)%16];
 }
 
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 /* ---------- Config persistence ---------- */
 function loadConfig(){
   try {
@@ -843,11 +981,12 @@ function loadConfig(){
     if(raw){
       const parsed = JSON.parse(raw);
       Object.assign(state.config, parsed);
-      if(!state.config.tools) state.config.tools = { time:true, date:true, weather:true, calculator:true };
+      if(!state.config.tools) state.config.tools = { time:true, date:true, weather:true, calculator:true, memory:true };
+      if(state.config.tools.memory === undefined) state.config.tools.memory = true;
     }
   } catch(e){}
   if(!state.config.system){
-    state.config.system = "You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as \"Sir\" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, and calculations.";
+    state.config.system = "You are J.A.R.V.I.S, a sophisticated AI assistant inspired by Iron Man's AI. You are witty, concise, and helpful. Address the user as \"Sir\" occasionally but not every time. Keep responses focused and natural for voice output. When tools are available, use them proactively for weather, date, time, calculations, and saving memories.";
   }
   if(!state.config.temperature) state.config.temperature = 0.7;
   if(!state.config.maxTokens) state.config.maxTokens = 1024;
@@ -863,7 +1002,6 @@ function applyConfigToUI(){
   $('cfgMaxTokens').value = state.config.maxTokens;
   $('cfgVoice').value = state.config.voice || '';
   setTtsToggle(state.config.tts);
-  // Tool checkboxes
   document.querySelectorAll('.checkbox-card').forEach(card => {
     const tool = card.dataset.tool;
     if(state.config.tools[tool]) card.classList.add('active');
@@ -896,7 +1034,7 @@ function updateModelDisplay(){
 function updateToolsDisplay(){
   const container = $('toolsDisplay');
   container.innerHTML = '';
-  const labels = { time:'Time', date:'Date', weather:'Weather', calculator:'Calc' };
+  const labels = { time:'Time', date:'Date', weather:'Weather', calculator:'Calc', memory:'Memory' };
   let count = 0;
   for(const [key, on] of Object.entries(state.config.tools)){
     if(on){
@@ -910,7 +1048,6 @@ function updateToolsDisplay(){
   if(count === 0){
     container.innerHTML = '<span class="text-[10px] text-slate-500 font-mono">No tools enabled</span>';
   }
-  $('toolCount').textContent = `${count} enabled`;
 }
 
 /* ---------- Presets ---------- */
@@ -996,7 +1133,6 @@ fetchModelsBtn.addEventListener('click', fetchModels);
 function openSettings(){
   applyConfigToUI();
   settingsModal.classList.remove('hidden');
-  // Auto-fetch models if we have credentials but haven't fetched yet
   const baseUrl = $('cfgBaseUrl').value.trim();
   const apiKey = $('cfgApiKey').value.trim();
   if(baseUrl && apiKey && state.fetchedModels.length === 0){
@@ -1013,7 +1149,6 @@ settingsModal.addEventListener('click',(e)=>{ if(e.target===settingsModal) close
   i.type = i.type==='password' ? 'text' : 'password';
 });
 
-// Tool checkbox cards
 document.querySelectorAll('.checkbox-card').forEach(card => {
   card.addEventListener('click', () => {
     const tool = card.dataset.tool;
@@ -1029,7 +1164,6 @@ saveBtn.addEventListener('click', () => {
   state.config.temperature = parseFloat($('cfgTemp').value) || 0.7;
   state.config.maxTokens = parseInt($('cfgMaxTokens').value) || 1024;
   state.config.voice = $('cfgVoice').value;
-  // Save tool toggles
   document.querySelectorAll('.checkbox-card').forEach(card => {
     state.config.tools[card.dataset.tool] = card.classList.contains('active');
   });
@@ -1068,6 +1202,7 @@ testBtn.addEventListener('click', async () => {
 
 /* ---------- TTS ---------- */
 function loadVoices(){
+  if(!('speechSynthesis' in window)) return;
   state.voices = speechSynthesis.getVoices();
   const sel = $('cfgVoice');
   sel.innerHTML = '<option value="">Auto</option>';
@@ -1083,25 +1218,40 @@ if('speechSynthesis' in window){
   loadVoices();
   speechSynthesis.onvoiceschanged = loadVoices;
 }
+
 function speak(text){
   if(!state.config.tts || !('speechSynthesis' in window)) return;
-  speechSynthesis.cancel();
-  const clean = text.replace(/[*_`#>]/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/```[\s\S]*?```/g,'').trim();
-  const u = new SpeechSynthesisUtterance(clean);
-  u.rate = 1.02; u.pitch = 1.0; u.volume = 1;
-  if(state.config.voice){ const v = state.voices.find(x=>x.name===state.config.voice); if(v) u.voice = v; }
-  u.onstart = () => { state.ttsActive = true; if(state.status!=='think'&&state.status!=='tools') setStatus('speak'); };
-  u.onend = () => { state.ttsActive = false; if(state.status==='speak') setStatus('idle'); };
-  u.onerror = () => { state.ttsActive = false; if(state.status==='speak') setStatus('idle'); };
-  speechSynthesis.speak(u);
+  try {
+    speechSynthesis.cancel();
+    const clean = text.replace(/[*_`#>]/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/```[\s\S]*?```/g,'').trim();
+    if(!clean) return;
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 1.02; u.pitch = 1.0; u.volume = 1;
+    if(state.config.voice){ const v = state.voices.find(x=>x.name===state.config.voice); if(v) u.voice = v; }
+    u.onstart = () => { state.ttsActive = true; if(state.status!=='think'&&state.status!=='tools') setStatus('speak'); };
+    u.onend = () => { 
+      state.ttsActive = false; 
+      if(state.status==='speak') {
+        setStatus(state.ambientMode ? 'ambient' : 'idle');
+        resumeAmbient(); 
+      }
+    };
+    u.onerror = () => { state.ttsActive = false; if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle'); resumeAmbient(); };
+    speechSynthesis.speak(u);
+  } catch(e) {
+    logEvent('TTS Error: ' + e.message, 'err');
+  }
 }
-function stopSpeaking(){ if('speechSynthesis' in window) speechSynthesis.cancel(); state.ttsActive = false; }
+
+function stopSpeaking(){ 
+  if('speechSynthesis' in window) speechSynthesis.cancel(); 
+  state.ttsActive = false; 
+}
 
 function setTtsToggle(on){
   const t = $('cfgTtsToggle');
-  if(on) t.classList.add('on'); else t.classList.remove('on');
-  ttsLabel.textContent = on ? 'Voice On' : 'Voice Off';
-  ttsToggleBtn.style.opacity = on ? '1' : '0.5';
+  if(on){ t.classList.add('on'); ttsToggleBtn.classList.add('btn-primary'); ttsLabel.textContent = 'Voice On'; }
+  else { t.classList.remove('on'); ttsToggleBtn.classList.remove('btn-primary'); ttsLabel.textContent = 'Voice Off'; }
 }
  $('cfgTtsToggle').addEventListener('click', () => {
   state.config.tts = !state.config.tts;
@@ -1114,37 +1264,155 @@ ttsToggleBtn.addEventListener('click', () => {
   if(!state.config.tts) stopSpeaking();
 });
 
+/* ---------- Ambient Listening (Wake Word) ---------- */
+const WAKE_WORDS = ['jarvis', 'jervis', 'driver', 'travis', 'charvis', 'j a r v i s', 'j.a.r.v.i.s', 'jarvas', 'jarell', 'jarvice'];
+
+function containsWakeWord(text){
+  const lower = text.toLowerCase();
+  for(const w of WAKE_WORDS){
+    if(lower.includes(w)) return { found: true, word: w };
+  }
+  return { found: false };
+}
+
+function cleanWakeWord(text){
+  let clean = text;
+  for(const w of WAKE_WORDS){
+    const regex = new RegExp(`\\b${w}\\b`, 'gi');
+    clean = clean.replace(regex, '');
+  }
+  // Also handle cases where it's attached without spaces
+  clean = clean.replace(/jarvis/gi, '').replace(/driver/gi, '').replace(/travis/gi, '');
+  return clean.replace(/^[\s,.-]+/, '').trim();
+}
+
+function pauseAmbient() {
+  if(state.ambientMode){
+    state.ambientPaused = true;
+    if(state.recognition && state.recognizing){
+      try { state.recognition.stop(); } catch(e){}
+    }
+  }
+}
+
+function resumeAmbient() {
+  if(state.ambientMode && state.ambientPaused && !state.isProcessingCommand && !state.ttsActive){
+    state.ambientPaused = false;
+    setTimeout(() => {
+      try {
+        if(!state.recognizing) state.recognition.start();
+      } catch(e){}
+    }, 300);
+  }
+}
+
+ambientBtn.addEventListener('click', () => {
+  state.ambientMode = !state.ambientMode;
+  if(state.ambientMode){
+    ambientBtn.classList.add('btn-active');
+    ambientLabel.textContent = 'Wake On';
+    setStatus('ambient');
+    logEvent('Ambient wake word mode enabled', 'ok');
+    if(!state.recognition) state.recognition = initRecognition();
+    try { state.recognition.start(); } catch(e){}
+  } else {
+    ambientBtn.classList.remove('btn-active');
+    ambientLabel.textContent = 'Wake Off';
+    if(state.status === 'ambient') setStatus('idle');
+    logEvent('Ambient wake word mode disabled', 'info');
+    if(state.recognition && state.recognizing){
+      try { state.recognition.stop(); } catch(e){}
+    }
+  }
+});
+
 /* ---------- Speech Recognition ---------- */
 function initRecognition(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){ logEvent('Speech recognition not supported','warn'); return null; }
   const r = new SR();
-  r.continuous = false; r.interimResults = true; r.lang = 'en-US';
+  r.lang = 'en-US';
+  r.interimResults = true;
+  r.continuous = state.ambientMode;
+  r.maxAlternatives = 3;
+
   r.onstart = () => {
     state.recognizing = true;
-    micBtn.classList.add('recording');
-    micIcon.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
-    setStatus('listen'); logEvent('Voice input started','info'); showWaveform(true);
+    if(!state.ambientMode){
+      micBtn.classList.add('recording');
+      micIcon.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>';
+      setStatus('listen');
+      logEvent('Voice input started','info');
+      showWaveform(true);
+    }
   };
+
   r.onend = () => {
     state.recognizing = false;
-    micBtn.classList.remove('recording');
-    micIcon.innerHTML = '<path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>';
-    if(state.status==='listen') setStatus('idle'); showWaveform(false);
+    if(!state.ambientMode){
+      micBtn.classList.remove('recording');
+      micIcon.innerHTML = '<path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>';
+      if(state.status==='listen') setStatus('idle');
+      showWaveform(false);
+    }
+    
+    // Auto-resume for ambient mode
+    if(state.ambientMode && !state.ambientPaused && !state.isProcessingCommand && !state.ttsActive){
+      setTimeout(() => {
+        try { r.start(); } catch(e){}
+      }, 100);
+    }
   };
+
   r.onerror = (e) => {
     logEvent('Speech recognition error: '+e.error,'err');
     if(e.error==='not-allowed') toast('Microphone permission denied','error');
-  };
-  r.onresult = (e) => {
-    let interim='', final='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t = e.results[i][0].transcript;
-      if(e.results[i].isFinal) final += t; else interim += t;
+    if(e.error==='no-speech' && !state.ambientMode){
+      // just ignore
     }
-    textInput.value = (final + interim).trim();
-    autoResize();
-    if(final){ setTimeout(() => { if(textInput.value.trim()) sendMessage(); }, 250); }
+  };
+
+  r.onresult = (e) => {
+    let interim = '', final = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      let transcript = e.results[i][0].transcript;
+      if(e.results[i].isFinal) final += transcript;
+      else interim += transcript;
+    }
+
+    if(state.ambientMode){
+      const combined = (final + ' ' + interim).toLowerCase();
+      const wakeCheck = containsWakeWord(combined);
+      
+      if(wakeCheck.found && !state.isProcessingCommand){
+        state.isProcessingCommand = true;
+        state.ambientPaused = true;
+        
+        try { r.stop(); } catch(err){}
+
+        let command = final;
+        if(!command || cleanWakeWord(command).length === 0){
+          // Only said "Jarvis", respond with greeting
+          textInput.value = "Jarvis, are you there?";
+        } else {
+          textInput.value = cleanWakeWord(command);
+        }
+        
+        logEvent(`Wake word detected. Command: "${textInput.value}"`, 'ok');
+        setTimeout(() => {
+          sendMessage();
+          state.isProcessingCommand = false;
+        }, 400);
+        return;
+      }
+    } else {
+      // Push-to-talk mode
+      textInput.value = (final + interim).trim();
+      autoResize();
+      if(final){
+        setTimeout(() => { if(textInput.value.trim()) sendMessage(); }, 250);
+      }
+    }
   };
   return r;
 }
@@ -1168,14 +1436,33 @@ function animateWaveform(){
   waveAnimId = setTimeout(() => { if(state.recognizing) requestAnimationFrame(animateWaveform); }, 100);
 }
 
-/* ---------- Mic ---------- */
+/* ---------- Mic button ---------- */
 micBtn.addEventListener('click', () => {
+  if(state.ambientMode){
+    // In ambient mode, clicking mic forces a command window
+    state.isProcessingCommand = true;
+    state.ambientPaused = true;
+    if(state.recognizing) try { state.recognition.stop(); } catch(e){}
+    setTimeout(() => {
+      state.recognition = initRecognition();
+      state.recognition.continuous = false;
+      state.ambientMode = false; // temporarily disable to use PTT logic
+      try { state.recognition.start(); } catch(e){}
+      state.ambientMode = true;
+    }, 100);
+    return;
+  }
+  
   if(!state.recognition){
     state.recognition = initRecognition();
     if(!state.recognition) return;
   }
-  if(state.recognizing){ state.recognition.stop(); }
-  else { stopSpeaking(); try{ state.recognition.start(); }catch(e){} }
+  if(state.recognizing){
+    state.recognition.stop();
+  } else {
+    stopSpeaking();
+    try { state.recognition.start(); } catch(e){}
+  }
 });
 
 /* ---------- Text input ---------- */
@@ -1242,10 +1529,6 @@ function addToolBubble(toolName, args){
   };
 }
 
-function escapeHtml(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 function formatText(t){
   return t
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
@@ -1265,6 +1548,7 @@ async function sendMessage(){
     openSettings(); return;
   }
   stopSpeaking();
+  pauseAmbient();
   addBubble('user', text);
   state.messages.push({ role:'user', content:text });
   textInput.value = ''; autoResize();
@@ -1281,7 +1565,7 @@ async function sendMessage(){
     addBubble('system', '⚠ ' + e.message);
     setStatus('error');
     logEvent('Error: ' + e.message, 'err');
-    setTimeout(() => { if(state.status==='error') setStatus('idle'); }, 3000);
+    setTimeout(() => { if(state.status==='error') { setStatus(state.ambientMode ? 'ambient' : 'idle'); resumeAmbient(); } }, 3000);
   }
 }
 
@@ -1292,7 +1576,6 @@ async function runConversation(placeholderEl){
   for(let round = 0; round < maxRounds; round++){
     const result = await streamChat(placeholderEl);
 
-    // If the model made tool calls, execute them and continue
     if(result.toolCalls && result.toolCalls.length > 0){
       setStatus('tools');
 
@@ -1323,29 +1606,30 @@ async function runConversation(placeholderEl){
         }
       }
 
-      // Create new placeholder for the model's next response
       placeholderEl = addBubble('assistant', '');
       placeholderEl.innerHTML = '<span class="inline-flex gap-1 items-center"><span class="dot tools" style="width:6px;height:6px"></span><span class="dot tools" style="width:6px;height:6px;animation-delay:.2s"></span><span class="dot tools" style="width:6px;height:6px;animation-delay:.4s"></span></span>';
       setStatus('think');
       continue;
     }
 
-    // No tool calls — final response
     if(result.content){
       logEvent('Response complete', 'ok');
       if(state.config.tts) speak(result.content);
-      else setStatus('idle');
+      else { 
+        setStatus(state.ambientMode ? 'ambient' : 'idle'); 
+        resumeAmbient(); 
+      }
     } else {
       placeholderEl.remove();
-      setStatus('idle');
+      setStatus(state.ambientMode ? 'ambient' : 'idle');
+      resumeAmbient();
     }
     return;
   }
 
-  // Exceeded max rounds
   logEvent('Max tool-call rounds reached', 'warn');
   if(state.config.tts) speak("I've reached the maximum number of tool calls for this request.");
-  setStatus('idle');
+  else { setStatus(state.ambientMode ? 'ambient' : 'idle'); resumeAmbient(); }
 }
 
 /* ---------- Stream chat with tool call support ---------- */
@@ -1354,7 +1638,7 @@ async function streamChat(placeholderEl){
   const body = {
     model: state.config.model,
     messages: [
-      { role:'system', content: state.config.system },
+      { role:'system', content: getSystemPromptWithContext() },
       ...state.messages
     ],
     temperature: state.config.temperature,
@@ -1376,7 +1660,6 @@ async function streamChat(placeholderEl){
     throw new Error(`HTTP ${res.status}: ${detail.slice(0,200)}`);
   }
 
-  // Non-streaming fallback
   if(!res.body){
     const data = await res.json();
     const msg = data.choices?.[0]?.message;
@@ -1391,7 +1674,6 @@ async function streamChat(placeholderEl){
     return { content, toolCalls };
   }
 
-  // Streaming
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -1415,14 +1697,12 @@ async function streamChat(placeholderEl){
         const delta = json.choices?.[0]?.delta;
         if(!delta) continue;
 
-        // Accumulate content
         if(delta.content){
           fullText += delta.content;
           placeholderEl.innerHTML = formatText(fullText);
           chatEl.scrollTop = chatEl.scrollHeight;
         }
 
-        // Accumulate tool calls
         if(delta.tool_calls){
           for(const tc of delta.tool_calls){
             const idx = tc.index ?? 0;
@@ -1439,10 +1719,8 @@ async function streamChat(placeholderEl){
     }
   }
 
-  // Clean up tool calls array (remove empty slots)
   accumulatedToolCalls = accumulatedToolCalls.filter(tc => tc && tc.function && tc.function.name);
 
-  // Push assistant message to history
   if(accumulatedToolCalls.length > 0){
     state.messages.push({
       role: 'assistant',
@@ -1458,6 +1736,7 @@ async function streamChat(placeholderEl){
 
 /* ---------- Init ---------- */
 loadConfig();
+loadMemories();
 applyConfigToUI();
 
 if(!state.config.baseUrl || !state.config.apiKey || !state.config.model){
@@ -1471,6 +1750,7 @@ if(!state.config.baseUrl || !state.config.apiKey || !state.config.model){
   logEvent(`Model: ${state.config.model}`, 'info');
   const toolCount = Object.values(state.config.tools).filter(Boolean).length;
   logEvent(`${toolCount} tools enabled`, 'tool');
+  logEvent(`${state.memories.length} memories loaded`, 'info');
 }
 
 /* ---------- Keyboard shortcuts ---------- */
