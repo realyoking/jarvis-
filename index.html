@@ -1158,7 +1158,6 @@ function applyConfigToUI(){
   $('cfgCustomTtsPath').value = state.config.customTtsPath;
   setTtsToggle(state.config.tts);
   
-  // TTS engine toggle UI
   ttsBrowserBtn.classList.remove('btn-primary');
   ttsApiBtn.classList.remove('btn-primary');
   ttsCustomBtn.classList.remove('btn-primary');
@@ -1423,28 +1422,7 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
-/* ---------- TTS (Fixed for Android) ---------- */
-let audioUnlocked = false;
-let dummyAudio = null;
-
-// This hidden audio element is required to unlock playback on Android
-function unlockAudio() {
-  if (audioUnlocked) return;
-  try {
-    // A tiny silent mp3 base64 to trick the browser
-    dummyAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA4UOLD8nKVOWfh+UlK4E6mgBFq/WGoRgiCgSPdfhjwBBSL+pmDDv7QFXfRUYvfFFJpiQu54dEvLDDtjK5FzbZUizF3CDLKtwODrkPRElmIIfDLi/HxECnj0L7QHHfMcwhdQMS/SQuB4cgT4BAEgxIYBoNo9aJicGYTQzGgUNoq4ghAGAqo4xQiABCQAAAJF/Tt/p2EBQGwQA67PHvf0BwHfXn1Zx///v/R9pv///+3///7///+r///6///+n0QAAABpmlxYS3//v/p/+v//6///b///5//9P///f////7H0AAAALhpWWEu//3//f/9//7//v/////+///+v/9f//9///0/UAAAACWFtYUb//f/7//7///z//v/8//r//f//9//7////6fQAAAAltYkYU//3//v/6//r//f/////+///+v/9//9//////9PQAAAAGtjGFD//f/9//v//P/9//3//v/////+//3//P//////vz0AAAAWcmIQQ//3//v/5//f//P//P/9//3//////v/8///////8fQAAABRqYhhQ//f/+//3//f///////9//3///////v//P///////z9AAAAE2phGFD//f/7//f//P///////f/9///////+//z///////M/AAAADGmEZUP/9//v//P/9//3//f/9///////3//f///////z/UAAAAAJqYRlR//f/9//3//f/9//3//f///////f/9///////L9QAAAAJJmEZUP/9//3//f/9//3//f/9///////3//f///////y/UAAAABCZhGVD//f/9//3//f/9//3//f///////f/9///////M/AAAAAcmARlQ//3//f/9//3//f/9///////3//f///////z/UAAAAA=');
-    dummyAudio.volume = 0.01;
-    dummyAudio.play().then(() => {
-      dummyAudio.pause();
-      audioUnlocked = true;
-      logEvent('Audio context unlocked for mobile', 'ok');
-    }).catch(e => { /* ignore */ });
-  } catch(e) {}
-}
-
-document.addEventListener('click', unlockAudio, { once: false });
-document.addEventListener('touchstart', unlockAudio, { once: false });
-
+/* ---------- TTS (Fixed for Mobile Gestures) ---------- */
 function loadVoices(){
   if(!('speechSynthesis' in window)) return;
   state.voices = speechSynthesis.getVoices();
@@ -1599,44 +1577,50 @@ async function playAudioUrl(audioUrl, isBlob) {
 }
 
 function speakBrowser(text) {
-  if (!('speechSynthesis' in window)) return;
-  try {
-    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-      window.speechSynthesis.cancel();
-    }
-    
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.02; u.pitch = 1.0; u.volume = 1;
-    if(state.config.voice){ const v = state.voices.find(x=>x.name===state.config.voice); if(v) u.voice = v; }
-    
-    u.onstart = () => { 
-      state.ttsActive = true; 
-      if(state.status!=='think'&&state.status!=='tools') setStatus('speak');
-      // ANDROID HACK: Keep speech synthesis alive
-      startAndroidTtsHack();
-    };
-    u.onend = () => { 
-      state.ttsActive = false; 
-      stopAndroidTtsHack();
-      if(state.status==='speak') {
-        setStatus(state.ambientMode ? 'ambient' : 'idle');
-        resumeAmbient(); 
-      }
-    };
-    u.onerror = () => { 
-      state.ttsActive = false; 
-      stopAndroidTtsHack();
-      if(state.status==='speak') {
-        setStatus(state.ambientMode ? 'ambient' : 'idle');
-        resumeAmbient();
-      }
-    };
-    
-    // ANDROID HACK: delay slightly after cancel
-    setTimeout(() => window.speechSynthesis.speak(u), 150);
-  } catch(e) {
-    logEvent('Browser TTS Error: ' + e.message, 'err');
+  if (!('speechSynthesis' in window)) {
+    toast('Speech not supported on this device', 'error');
+    return;
   }
+  const cleanText = text.replace(/[*_`#>]/g,'').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/```[\s\S]*?```/g,'').trim();
+  if (!cleanText) return;
+
+  const u = new SpeechSynthesisUtterance(cleanText);
+  u.rate = 1.02;
+  u.pitch = 1.0;
+  u.volume = 1;
+
+  if(state.config.voice) {
+    const v = state.voices.find(x => x.name === state.config.voice);
+    if(v) u.voice = v;
+  }
+
+  u.onstart = () => { 
+    state.ttsActive = true; 
+    if(state.status!=='think'&&state.status!=='tools') setStatus('speak'); 
+    startAndroidTtsHack();
+  };
+  u.onend = () => { 
+    state.ttsActive = false; 
+    stopAndroidTtsHack();
+    if(state.status==='speak') {
+      setStatus(state.ambientMode ? 'ambient' : 'idle');
+      resumeAmbient(); 
+    }
+  };
+  
+  u.onerror = (event) => {
+    state.ttsActive = false;
+    stopAndroidTtsHack();
+    toast('Speech blocked – tap to allow', 'error');
+    logEvent('Browser TTS failed: ' + event.error, 'err');
+    if(state.status==='speak') {
+      setStatus(state.ambientMode ? 'ambient' : 'idle');
+      resumeAmbient();
+    }
+  };
+
+  // Small delay to ensure the prime utterance clears
+  setTimeout(() => window.speechSynthesis.speak(u), 100);
 }
 
 function startAndroidTtsHack() {
@@ -1960,6 +1944,14 @@ async function sendMessage(){
     openSettings(); return;
   }
   stopSpeaking();
+  
+  // PRIME SPEECH FOR MOBILE (Must be inside user gesture)
+  if (state.config.tts && state.config.ttsEngine === 'browser' && 'speechSynthesis' in window) {
+    const dummy = new SpeechSynthesisUtterance('');
+    dummy.volume = 0;
+    speechSynthesis.speak(dummy);
+  }
+
   pauseAmbient();
   addBubble('user', text);
   state.messages.push({ role:'user', content:text });
