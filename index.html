@@ -622,7 +622,8 @@ const state = {
   ambientMode: false,
   ambientPaused: false,
   isProcessingCommand: false,
-  currentAudio: null
+  currentAudio: null,
+  androidTtsHackInterval: null
 };
 
 /* ---------- DOM ---------- */
@@ -1422,19 +1423,27 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
-/* ---------- TTS ---------- */
-let ttsUnlocked = false;
-function unlockTTS() {
-  if (ttsUnlocked || !('speechSynthesis' in window)) return;
+/* ---------- TTS (Fixed for Android) ---------- */
+let audioUnlocked = false;
+let dummyAudio = null;
+
+// This hidden audio element is required to unlock playback on Android
+function unlockAudio() {
+  if (audioUnlocked) return;
   try {
-    const u = new SpeechSynthesisUtterance(' ');
-    u.volume = 0;
-    window.speechSynthesis.speak(u);
-    ttsUnlocked = true;
+    // A tiny silent mp3 base64 to trick the browser
+    dummyAudio = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAADB8AhSmxhIIEVCSiJrDCQBTcu3UrAIwUdkRgQbFAZC1CQEwTJ9mjRvBA4UOLD8nKVOWfh+UlK4E6mgBFq/WGoRgiCgSPdfhjwBBSL+pmDDv7QFXfRUYvfFFJpiQu54dEvLDDtjK5FzbZUizF3CDLKtwODrkPRElmIIfDLi/HxECnj0L7QHHfMcwhdQMS/SQuB4cgT4BAEgxIYBoNo9aJicGYTQzGgUNoq4ghAGAqo4xQiABCQAAAJF/Tt/p2EBQGwQA67PHvf0BwHfXn1Zx///v/R9pv///+3///7///+r///6///+n0QAAABpmlxYS3//v/p/+v//6///b///5//9P///f////7H0AAAALhpWWEu//3//f/9//7//v/////+///+v/9f//9///0/UAAAACWFtYUb//f/7//7///z//v/8//r//f//9//7////6fQAAAAltYkYU//3//v/6//r//f/////+///+v/9//9//////9PQAAAAGtjGFD//f/9//v//P/9//3//v/////+//3//P//////vz0AAAAWcmIQQ//3//v/5//f//P//P/9//3//////v/8///////8fQAAABRqYhhQ//f/+//3//f///////9//3///////v//P///////z9AAAAE2phGFD//f/7//f//P///////f/9///////+//z///////M/AAAADGmEZUP/9//v//P/9//3//f/9///////3//f///////z/UAAAAAJqYRlR//f/9//3//f/9//3//f///////f/9///////L9QAAAAJJmEZUP/9//3//f/9//3//f/9///////3//f///////y/UAAAABCZhGVD//f/9//3//f/9//3//f///////f/9///////M/AAAAAcmARlQ//3//f/9//3//f/9///////3//f///////z/UAAAAA=');
+    dummyAudio.volume = 0.01;
+    dummyAudio.play().then(() => {
+      dummyAudio.pause();
+      audioUnlocked = true;
+      logEvent('Audio context unlocked for mobile', 'ok');
+    }).catch(e => { /* ignore */ });
   } catch(e) {}
 }
-document.addEventListener('click', unlockTTS, { once: true });
-document.addEventListener('touchstart', unlockTTS, { once: true });
+
+document.addEventListener('click', unlockAudio, { once: false });
+document.addEventListener('touchstart', unlockAudio, { once: false });
 
 function loadVoices(){
   if(!('speechSynthesis' in window)) return;
@@ -1483,24 +1492,11 @@ async function speak(text){
       
       const blob = await res.blob();
       const audioUrl = URL.createObjectURL(blob);
-      state.currentAudio = new Audio(audioUrl);
-      state.currentAudio.onended = () => {
-        state.ttsActive = false;
-        if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle');
-        URL.revokeObjectURL(audioUrl);
-        state.currentAudio = null;
-        resumeAmbient();
-      };
-      state.currentAudio.onerror = () => {
-        throw new Error('Audio playback failed');
-      };
-      
-      await state.currentAudio.play();
-      state.ttsActive = true;
+      await playAudioUrl(audioUrl, true);
       logEvent('API TTS playback started', 'ok');
     } catch(e) {
       logEvent('API TTS Error: ' + e.message, 'err');
-      toast('API TTS failed. Check settings. Falling back to browser voice.', 'error');
+      toast('API TTS failed. Falling back to browser voice.', 'error');
       speakBrowser(cleanText);
     }
   } else if(state.config.ttsEngine === 'custom') {
@@ -1508,14 +1504,12 @@ async function speak(text){
       setStatus('speak');
       logEvent('Generating Custom API TTS...', 'info');
 
-      // Parse and replace placeholders in headers
       const headersObj = JSON.parse(state.config.customTtsHeaders || '{}');
       const finalHeaders = {};
       for(const key in headersObj) {
         finalHeaders[key] = headersObj[key].replaceAll('{{key}}', state.config.apiKey).replaceAll('{{text}}', cleanText);
       }
 
-      // Parse and replace placeholders in body
       let bodyObj = JSON.parse(state.config.customTtsBody || '{}');
       const traverseAndReplace = (obj) => {
         for(const k in obj) {
@@ -1552,34 +1546,23 @@ async function speak(text){
         if(current.startsWith('http') || current.startsWith('data:audio')) {
           audioUrl = current;
         } else {
-          // Assume it's base64
           audioUrl = `data:audio/mp3;base64,${current}`;
         }
       } else {
-        // Assume direct audio blob
         const blob = await res.blob();
         audioUrl = URL.createObjectURL(blob);
       }
 
-      state.currentAudio = new Audio(audioUrl);
-      state.currentAudio.onended = () => {
-        state.ttsActive = false;
-        if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle');
-        if(audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
-        state.currentAudio = null;
-        resumeAmbient();
-      };
-      state.currentAudio.onerror = () => {
-        throw new Error('Audio playback failed');
-      };
-
-      await state.currentAudio.play();
-      state.ttsActive = true;
+      await playAudioUrl(audioUrl, !audioUrl.startsWith('data:'));
       logEvent('Custom TTS playback started', 'ok');
 
     } catch(e) {
       logEvent('Custom TTS Error: ' + e.message, 'err');
-      toast('Custom TTS failed. Check configuration. Falling back to browser voice.', 'error');
+      if (e.message.includes('Failed to fetch')) {
+        toast('Custom TTS blocked by CORS. Falling back.', 'error');
+      } else {
+        toast('Custom TTS failed. Falling back.', 'error');
+      }
       speakBrowser(cleanText);
     }
   } else {
@@ -1587,20 +1570,54 @@ async function speak(text){
   }
 }
 
+async function playAudioUrl(audioUrl, isBlob) {
+  try {
+    state.currentAudio = new Audio(audioUrl);
+    state.currentAudio.onended = () => {
+      state.ttsActive = false;
+      if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle');
+      if(isBlob) URL.revokeObjectURL(audioUrl);
+      state.currentAudio = null;
+      resumeAmbient();
+    };
+    state.currentAudio.onerror = () => {
+      state.ttsActive = false;
+      if(state.status==='speak') setStatus(state.ambientMode ? 'ambient' : 'idle');
+      if(isBlob) URL.revokeObjectURL(audioUrl);
+      state.currentAudio = null;
+      resumeAmbient();
+      throw new Error('Audio playback error');
+    };
+
+    await state.currentAudio.play();
+    state.ttsActive = true;
+  } catch(e) {
+    if(isBlob) URL.revokeObjectURL(audioUrl);
+    state.currentAudio = null;
+    throw new Error('Audio playback blocked: ' + e.message);
+  }
+}
+
 function speakBrowser(text) {
   if (!('speechSynthesis' in window)) return;
   try {
-    if (speechSynthesis.speaking || speechSynthesis.pending) {
-      speechSynthesis.cancel();
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      window.speechSynthesis.cancel();
     }
     
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.02; u.pitch = 1.0; u.volume = 1;
     if(state.config.voice){ const v = state.voices.find(x=>x.name===state.config.voice); if(v) u.voice = v; }
     
-    u.onstart = () => { state.ttsActive = true; if(state.status!=='think'&&state.status!=='tools') setStatus('speak'); };
+    u.onstart = () => { 
+      state.ttsActive = true; 
+      if(state.status!=='think'&&state.status!=='tools') setStatus('speak');
+      // ANDROID HACK: Keep speech synthesis alive
+      startAndroidTtsHack();
+    };
     u.onend = () => { 
       state.ttsActive = false; 
+      stopAndroidTtsHack();
       if(state.status==='speak') {
         setStatus(state.ambientMode ? 'ambient' : 'idle');
         resumeAmbient(); 
@@ -1608,15 +1625,36 @@ function speakBrowser(text) {
     };
     u.onerror = () => { 
       state.ttsActive = false; 
+      stopAndroidTtsHack();
       if(state.status==='speak') {
         setStatus(state.ambientMode ? 'ambient' : 'idle');
         resumeAmbient();
       }
     };
     
-    setTimeout(() => speechSynthesis.speak(u), 100);
+    // ANDROID HACK: delay slightly after cancel
+    setTimeout(() => window.speechSynthesis.speak(u), 150);
   } catch(e) {
     logEvent('Browser TTS Error: ' + e.message, 'err');
+  }
+}
+
+function startAndroidTtsHack() {
+  stopAndroidTtsHack();
+  state.androidTtsHackInterval = setInterval(() => {
+    if (!window.speechSynthesis.speaking) {
+      stopAndroidTtsHack();
+      return;
+    }
+    window.speechSynthesis.pause();
+    window.speechSynthesis.resume();
+  }, 9000);
+}
+
+function stopAndroidTtsHack() {
+  if (state.androidTtsHackInterval) {
+    clearInterval(state.androidTtsHackInterval);
+    state.androidTtsHackInterval = null;
   }
 }
 
@@ -1626,6 +1664,7 @@ function stopSpeaking(){
     state.currentAudio = null;
   }
   if('speechSynthesis' in window) speechSynthesis.cancel(); 
+  stopAndroidTtsHack();
   state.ttsActive = false; 
 }
 
