@@ -543,8 +543,8 @@
           </div>
           <div>
             <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Custom TTS Body (JSON)</label>
-            <textarea id="cfgCustomTtsBody" rows="3" placeholder='{"text": "{{text}}", "voice": "en-US", "api_key": "YOUR_KEY"}' class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono"></textarea>
-            <p class="text-[10px] text-slate-500 mt-1 font-mono">Use <code class="bg-black/40 px-1 rounded">{{text}}</code> for the spoken text, and <code class="bg-black/40 px-1 rounded">{{key}}</code> for your main API key.</p>
+            <textarea id="cfgCustomTtsBody" rows="3" placeholder='{"text": "{{text}}", "voice": "en-US-JennyNeural"}' class="input w-full rounded-lg px-3 py-2.5 text-sm font-mono"></textarea>
+            <p class="text-[10px] text-slate-500 mt-1 font-mono">Use <code class="bg-black/40 px-1 rounded">{{text}}</code> for the spoken text. Leave empty if response is direct audio file.</p>
           </div>
           <div>
             <label class="text-[10px] font-mono uppercase tracking-widest text-cyan-300/70 block mb-1.5">Audio JSON Path (Leave empty if response is direct audio file)</label>
@@ -607,7 +607,7 @@ const state = {
     apiTtsVoice: 'onyx',
     customTtsUrl: '',
     customTtsHeaders: '{\n  "Content-Type": "application/json"\n}',
-    customTtsBody: '{\n  "text": "{{text}}",\n  "voice": "en-US"\n}',
+    customTtsBody: '{\n  "text": "{{text}}",\n  "voice": "en-US-JennyNeural"\n}',
     customTtsPath: '',
     tools: { time: true, date: true, weather: true, calculator: true, memory: true }
   },
@@ -1128,7 +1128,7 @@ function loadConfig(){
       if(state.config.tools.memory === undefined) state.config.tools.memory = true;
       if(!state.config.ttsEngine) state.config.ttsEngine = 'browser';
       if(!state.config.customTtsHeaders) state.config.customTtsHeaders = '{\n  "Content-Type": "application/json"\n}';
-      if(!state.config.customTtsBody) state.config.customTtsBody = '{\n  "text": "{{text}}",\n  "voice": "en-US"\n}';
+      if(!state.config.customTtsBody) state.config.customTtsBody = '{\n  "text": "{{text}}",\n  "voice": "en-US-JennyNeural"\n}';
     }
   } catch(e){}
   if(!state.config.system){
@@ -1357,11 +1357,11 @@ ttsCustomBtn.addEventListener('click', () => {
 });
 
  $('loadFreeTtsBtn').addEventListener('click', () => {
-  $('cfgCustomTtsUrl').value = 'https://api.freetts.org/v1/tts';
+  $('cfgCustomTtsUrl').value = 'https://freetts.org/api/tts';
   $('cfgCustomTtsHeaders').value = '{\n  "Content-Type": "application/json"\n}';
-  $('cfgCustomTtsBody').value = '{\n  "text": "{{text}}",\n  "voice": "en-US",\n  "api_key": "{{key}}"\n}';
-  $('cfgCustomTtsPath').value = 'audio';
-  toast('Loaded FreeTTS defaults. Make sure to use your FreeTTS API Key in the main API Key field.', 'info');
+  $('cfgCustomTtsBody').value = '{\n  "text": "{{text}}",\n  "voice": "en-US-JennyNeural"\n}';
+  $('cfgCustomTtsPath').value = '';
+  toast('Loaded FreeTTS defaults. No API key required for this endpoint.', 'info');
 });
 
 document.querySelectorAll('.checkbox-card').forEach(card => {
